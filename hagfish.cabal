@@ -42,8 +42,9 @@ library
   import:
       common-stanza
   exposed-modules:
-      Board
-    , Evaluate
+      Game
+    , Strategy
+    , Chess
       -- if you add modules to your project, list them here
       -- so that they will be available to the executable and test suite
   hs-source-dirs:

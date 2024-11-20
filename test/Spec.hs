@@ -1,53 +1,31 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-import Board
-import Data.Ix (range)
-import Evaluate
+import Chess
+import Data.Maybe (isNothing)
+import Game
 import Test.HUnit
 import Test.QuickCheck
-
--- Tests for Board
-
-instance Arbitrary Color where
-  arbitrary = elements [Black, White]
-  shrink x = []
-
-instance Arbitrary Square where
-  arbitrary = elements $ range (minBound, maxBound)
-  shrink = enumFrom
-
--- | Board with history
-data HistoryBoard = HB {unboard :: Position, history :: Maybe HistoryBoard}
-
-instance Show HistoryBoard where
-  show = show . unboard
-
-initialHB = HB initial Nothing
-
-instance Arbitrary HistoryBoard where
-  arbitrary :: Gen HistoryBoard
-  arbitrary = sized $ aux initialHB
-    where
-      aux hb@(HB b _) n =
-        if n == 0
-          then return hb
-          else
-            let m = moves b
-             in if null m
-                  then return hb
-                  else do
-                    next <- elements m
-                    aux (HB (enginePlay next b) (Just hb)) (n - 1)
-
-  shrink hb = case history hb of
-    Nothing -> []
-    Just h -> [h]
 
 prop_parseSquareInvariant :: Square -> Bool
 prop_parseSquareInvariant s = parseSquare (show s) == Just s
 
-prop_boardColorFlip :: HistoryBoard -> Bool
-prop_boardColorFlip (HB b _) = all (\m -> player b /= player (enginePlay m b)) (moves b)
+prop_chessPlayerFlip :: Chess -> Bool
+prop_chessPlayerFlip c = all (\m -> player c /= player (play c m)) (moves c)
+
+prop_chessMoves :: Chess -> Bool
+prop_chessMoves c = case status c of
+  Ongoing -> not $ null (moves c)
+  _ -> null (moves c)
+
+prop_chessLengthColor :: Chess -> Bool
+prop_chessLengthColor c = case histLength c `mod` 2 of
+  0 -> player c == White
+  1 -> player c == Black
+  _ -> error "unreachable"
+  where
+    histLength c = case history c of
+      Nothing -> 0
+      Just c' -> histLength c' + 1
 
 -- Tests for Evaluate
 
