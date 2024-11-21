@@ -2,7 +2,6 @@
 
 module Chess
   ( Chess,
-    ChessStatus (..),
     Color (..),
     Ply (..),
     Square (..),
@@ -39,26 +38,18 @@ data Chess = Chess
   }
   deriving (Eq)
 
-data ChessStatus
-  = Win
-  | Lose
-  | Draw
-  | Ongoing
-  deriving (Eq, Show)
-
 instance Show Chess where
   show :: Chess -> String
-  show = show . unPosition
+  show = show . unPosition -- TODO: maybe a better show function?
 
 instance Game Chess where
   type Move Chess = Ply
   type Player Chess = Color
-  type Status Chess = ChessStatus
 
-  initial :: Chess
-  initial = Chess startpos Nothing
+  initial :: Player Chess -> Chess
+  initial = const $ Chess startpos Nothing
 
-  status :: Chess -> Status Chess
+  status :: Chess -> Status
   status c = undefined -- TODO: implement the status of the current chess
 
   player :: Chess -> Player Chess
@@ -91,7 +82,7 @@ instance Arbitrary Square where
 
 instance Arbitrary Chess where
   arbitrary :: Gen Chess
-  arbitrary = sized $ step initial
+  arbitrary = sized $ step (initial White)
     where
       step c 0 = return c
       step c n =

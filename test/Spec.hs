@@ -27,6 +27,9 @@ prop_chessLengthColor c = case histLength c `mod` 2 of
       Nothing -> 0
       Just c' -> histLength c' + 1
 
+prop_chessWhiteStart :: Color -> Bool
+prop_chessWhiteStart c = player ((initial :: Color -> Chess) c) == White
+
 -- Tests for Evaluate
 
 return []
