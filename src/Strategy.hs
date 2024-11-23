@@ -3,6 +3,7 @@
 module Strategy
   ( Evaluate (..),
     Score (..),
+    Strategy (..),
   )
 where
 

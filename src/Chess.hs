@@ -24,6 +24,7 @@ import Game.Chess
     startpos,
     unsafeDoPly,
   )
+import Strategy (Evaluate (..), Strategy (..))
 import Test.QuickCheck
 
 -- | parse a string to a Square
@@ -89,6 +90,16 @@ instance Game Chess where
 
   moves :: Chess -> [Move Chess]
   moves = legalPlies . unPosition
+
+instance Evaluate Chess where
+  type Score Chess = Int
+
+  evaluate :: Chess -> Score Chess
+  evaluate = undefined
+
+instance Strategy Chess where
+  bestMove :: Chess -> Maybe (Move Chess)
+  bestMove = undefined -- defined minmax strategy here given a chess position?
 
 -- for QuickCheck
 
