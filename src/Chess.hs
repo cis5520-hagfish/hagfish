@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Chess
-  ( Chess,
+  ( Chess (..),
     Color (..),
     Ply (..),
     Square (..),
@@ -18,7 +18,9 @@ import Game.Chess
     Ply,
     Position (..),
     Square (..),
+    inCheck,
     legalPlies,
+    repetitions,
     startpos,
     unsafeDoPly,
   )
@@ -49,8 +51,32 @@ instance Game Chess where
   initial :: Player Chess -> Chess
   initial = const $ Chess startpos Nothing
 
-  status :: Chess -> Status
-  status c = undefined -- TODO: implement the status of the current chess
+  status :: Chess -> Player Chess -> Status
+  status c p
+    | inDraw c = Draw
+    | inCheckmate c = if p == player c then Loss else Win
+    | otherwise = Ongoing
+    where
+      inChecked :: Chess -> Bool
+      inChecked c = inCheck (player c) (unPosition c)
+
+      inCheckmate :: Chess -> Bool
+      inCheckmate c = null (moves c) && inChecked c
+
+      inDraw :: Chess -> Bool
+      inDraw c =
+        let inStalemate c = null (moves c) && not (inChecked c)
+         in let inThreeRep c = case repetitions (fullHistory c []) of
+                  Just (n, _) -> n >= 3
+                  Nothing -> False
+             in inStalemate c || inThreeRep c
+        where
+          fullHistory c acc =
+            unPosition c
+              : ( case history c of
+                    Nothing -> acc
+                    Just h -> fullHistory h acc
+                )
 
   player :: Chess -> Player Chess
   player = color . unPosition

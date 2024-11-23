@@ -3,8 +3,12 @@
 import Chess
 import Data.Maybe (isNothing)
 import Game
+import Game.Chess
 import Test.HUnit
 import Test.QuickCheck
+
+finalChess :: Gen Chess
+finalChess = resize 200 (arbitrary :: Gen Chess)
 
 prop_parseSquareInvariant :: Square -> Bool
 prop_parseSquareInvariant s = parseSquare (show s) == Just s
@@ -12,10 +16,15 @@ prop_parseSquareInvariant s = parseSquare (show s) == Just s
 prop_chessPlayerFlip :: Chess -> Bool
 prop_chessPlayerFlip c = all (\m -> player c /= player (play c m)) (moves c)
 
-prop_chessMoves :: Chess -> Bool
-prop_chessMoves c = case status c of
-  Ongoing -> not $ null (moves c)
-  _ -> null (moves c)
+prop_chessOngoing :: Chess -> Player Chess -> Property
+prop_chessOngoing c p = status c p == Ongoing ==> (not . null . moves) c
+
+prop_chessFinal :: Player Chess -> Property
+prop_chessFinal p = forAll finalChess $ \c -> status c p /= Ongoing ==> case status c p of
+  Loss -> null (moves c) && inCheck p (unPosition c)
+  Win -> null (moves c) && inCheck (opponent p) (unPosition c)
+  Draw -> True -- TODO: check this status
+  _ -> error "unreachable"
 
 prop_chessLengthColor :: Chess -> Bool
 prop_chessLengthColor c = case histLength c `mod` 2 of

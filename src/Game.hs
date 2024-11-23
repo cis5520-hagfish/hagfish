@@ -21,8 +21,8 @@ class (Eq (Move a)) => Game a where
   -- | return the initial situation with the given player
   initial :: Player a -> a
 
-  -- | return the current status of the game scenario
-  status :: a -> Status
+  -- | return the current status of the game scenario for the given player
+  status :: a -> Player a -> Status
 
   -- | return the current player of the game scenario
   player :: a -> Player a
