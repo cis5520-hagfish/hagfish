@@ -6,24 +6,19 @@ module Chess
     Ply (..),
     Square (..),
     Position (..),
+    PieceType (..),
     parseSquare,
+    opponent,
+    prettyChess,
+    prettyMove,
   )
 where
 
 import Data.Char (ord)
 import Data.Ix (range)
+import Data.List (intercalate)
 import Game
 import Game.Chess
-  ( Color (..),
-    Ply,
-    Position (..),
-    Square (..),
-    inCheck,
-    legalPlies,
-    repetitions,
-    startpos,
-    unsafeDoPly,
-  )
 import Test.QuickCheck
 
 -- | parse a string to a Square
@@ -42,7 +37,7 @@ data Chess = Chess
 
 instance Show Chess where
   show :: Chess -> String
-  show = show . unPosition -- TODO: maybe a better show function?
+  show = show . unPosition
 
 instance Game Chess where
   type Move Chess = Ply
@@ -123,3 +118,42 @@ instance Arbitrary Chess where
   shrink hb = case history hb of
     Nothing -> []
     Just h -> [h]
+
+prettyChess :: Chess -> String
+prettyChess = showPos . unPosition
+  where
+    squareLine :: Int -> [Square]
+    squareLine i = map toEnum (enumFromTo (8 * (i - 1)) (8 * i - 1))
+
+    showLine :: Position -> Int -> String
+    showLine pos i = show i ++ concatMap (showSquare . pieceAt pos) (squareLine i)
+
+    showPos :: Position -> String
+    showPos pos = "  A B C D E F G H\n" ++ intercalate "\n" (map (showLine pos) [8, 7 .. 1])
+
+    showSquare :: Maybe (Color, PieceType) -> String
+    showSquare Nothing = " ."
+    showSquare (Just (Black, Pawn)) = " ♟"
+    showSquare (Just (Black, Knight)) = " ♞"
+    showSquare (Just (Black, Bishop)) = " ♝"
+    showSquare (Just (Black, Rook)) = " ♜"
+    showSquare (Just (Black, Queen)) = " ♛"
+    showSquare (Just (Black, King)) = " ♚"
+    showSquare (Just (White, Pawn)) = " ♙"
+    showSquare (Just (White, Knight)) = " ♘"
+    showSquare (Just (White, Bishop)) = " ♗"
+    showSquare (Just (White, Rook)) = " ♖"
+    showSquare (Just (White, Queen)) = " ♕"
+    showSquare (Just (White, King)) = " ♔"
+
+-- | pretty print ply
+prettyMove :: Ply -> String
+prettyMove m = show (plySource m) ++ show (plyTarget m) ++ showPromote (plyPromotion m)
+  where
+    showPromote Nothing = ""
+    showPromote (Just Pawn) = "P"
+    showPromote (Just Knight) = "N"
+    showPromote (Just Bishop) = "B"
+    showPromote (Just Rook) = "R"
+    showPromote (Just Queen) = "Q"
+    showPromote (Just King) = "K"
