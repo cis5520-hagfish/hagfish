@@ -1,9 +1,12 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module ChessEngine
   ( Hagfish (..),
   )
 where
 
 import Chess
+import Console
 import Data.Char (toLower)
 import Engine
 import Game qualified
@@ -16,65 +19,42 @@ data CLIEngine = CLIEngine
     board :: Chess
   }
 
-putBold :: String -> IO ()
-putBold str = do
-  ANSI.setSGR [ANSI.SetConsoleIntensity ANSI.BoldIntensity]
-  putStr str
-  ANSI.setSGR [ANSI.Reset]
+putPrompt :: (ToStyled a) => a -> IO ()
+putPrompt s = putStyleLn (colored "Hagfish" Console.Cyan [Console.Bold] %% "> " %% s)
 
-putColor :: ANSI.Color -> String -> IO ()
-putColor c str = do
-  ANSI.setSGR [ANSI.SetColor ANSI.Foreground ANSI.Vivid c]
-  putStr str
-  ANSI.setSGR [ANSI.Reset]
-
-promptLn :: [Char] -> IO ()
-promptLn message = putStrLn ("Hagfish> " ++ message)
-
-prompt :: [Char] -> IO ()
-prompt message = putStr ("Hagfish> " ++ message)
-
-getUser :: IO String
-getUser = do
-  putStr "   User> "
+getPrompt :: IO String
+getPrompt = do
+  putStyle (colored "   User" Console.Purple [Console.Bold] %% "> ")
   hFlush stdout
   getLine
 
 instance Engine CLIEngine where
   initialize :: [String] -> IO (Either String CLIEngine)
   initialize _ = do
-    promptLn "Initializing Hagfish CLI interface"
+    clear
 
-    -- \| prompt the color you want to play
-    prompt "What color do you want to play? "
-    putBold "White/white/w"
-    putStr " or "
-    putBold "Black/black/b"
-    putStrLn "?"
+    putPrompt "What color do you want to play?"
+    putPrompt ("Choose between " %% colored "White/white/w" Console.White [Console.Bold] %% " or " %% colored "Black/black/b" Console.White [Console.Bold] %% ".")
     playerColor <- obtainColor
 
-    prompt "Game started! You are playing as "
-    putBold (map toLower $ show playerColor)
-    putStrLn ".\n"
-    return (Right $ CLIEngine playerColor (opponent playerColor) (Game.initial White))
+    putPrompt ("Game started! You are playing as " %% colored (map toLower $ show playerColor) Console.White [Console.Bold] %% ".")
+
+    return (Right $ CLIEngine playerColor (opponent playerColor) (Game.initial Chess.White))
     where
       obtainColor = do
-        c <- getUser
+        c <- getPrompt
         if c `elem` ["White", "white", "w"]
-          then return White
+          then return Chess.White
           else
             if c `elem` ["Black", "black", "b"]
-              then return Black
+              then return Chess.Black
               else do
-                prompt ("Color '" ++ c ++ "' is invalid. ")
-                putBold "White/white/w"
-                putStr " or "
-                putBold "Black/black/b"
-                putStrLn "?"
+                putPrompt ("Color '" %% c %% "' is invalid. ")
+                putPrompt ("Choose between " %% colored "White/white/w" Console.White [Console.Bold] %% " or " %% colored "Black/black/b" Console.White [Console.Bold] %% ".")
                 obtainColor
 
   run :: CLIEngine -> IO ()
-  run eng@(CLIEngine playerColor computerColor c) = go eng White 1
+  run eng@(CLIEngine playerColor computerColor c) = go eng Chess.White 1
     where
       go eng@(CLIEngine pcolor ccolor c) current n = case Game.status c current of
         Game.Win -> declareWin current n
@@ -82,26 +62,21 @@ instance Engine CLIEngine where
         Game.Draw -> declareDraw n
         Game.Ongoing -> do
           putStrLn $ prettyChess c
-          prompt ("Move " ++ show n ++ ", ")
-          putBold $ map toLower (show current)
-          putStrLn "'s turn."
-
+          putPrompt ("Move " %% show n %% ", " %% colored (map toLower (show current)) Console.White [Console.Bold] %% "'s turn.")
           if pcolor == current then doUser else doEngine
         where
           declareWin color n = do
-            prompt "Player "
-            putBold $ map toLower (show color)
-            prompt (" win after " ++ show n ++ " moves.")
+            putPrompt ("Player " %% colored (map toLower (show color)) Console.White [Console.Bold] %% "win after " %% show n %% " moves.")
 
           declareDraw n = do
-            promptLn ("Draw after " ++ show n ++ "moves.")
+            putPrompt ("Draw after " %% show n %% "moves.")
 
           doUser = do
-            promptLn "Enter your move: "
+            putPrompt "Enter your move: "
             go eng (opponent current) (n + 1)
 
           doEngine = do
-            promptLn "Thinking..."
+            putPrompt "Thinking..."
             go eng (opponent current) (n + 1)
 
 data UCIEngine = UCIEngine {}
