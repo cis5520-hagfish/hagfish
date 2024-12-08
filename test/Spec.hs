@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 import Chess
+import Data.List (intercalate)
 import Data.Maybe (isNothing)
 import Game
 import Game.Chess
@@ -20,11 +21,12 @@ prop_chessOngoing :: Chess -> Player Chess -> Property
 prop_chessOngoing c p = status c p == Ongoing ==> (not . null . moves) c
 
 prop_chessFinal :: Player Chess -> Property
-prop_chessFinal p = forAll finalChess $ \c -> status c p /= Ongoing ==> case status c p of
-  Loss -> null (moves c) && inCheck p (unPosition c)
-  Win -> null (moves c) && inCheck (opponent p) (unPosition c)
-  Draw -> True -- TODO: check this status
-  _ -> error "unreachable"
+prop_chessFinal p = forAll finalChess $ \c ->
+  status c p /= Ongoing ==> case status c p of
+    Loss -> null (moves c) && inCheck p (unPosition c)
+    Win -> null (moves c) && inCheck (opponent p) (unPosition c)
+    Draw -> True -- TODO: check this status
+    _ -> error "unreachable"
 
 prop_chessLengthColor :: Chess -> Bool
 prop_chessLengthColor c = case histLength c `mod` 2 of
@@ -38,6 +40,13 @@ prop_chessLengthColor c = case histLength c `mod` 2 of
 
 prop_chessWhiteStart :: Color -> Bool
 prop_chessWhiteStart c = player ((initial :: Color -> Chess) c) == White
+
+prop_parseMove :: Property
+prop_parseMove = forAllShow finalChess showMoves (\c -> all (\m -> parseMove (prettyMove m) c == Right m) (moves c))
+  where
+    showMoves c = intercalate "\n" (map showEach (moves c))
+      where
+        showEach ply = prettyMove ply ++ " <=> " ++ show (parseMove (prettyMove ply) c)
 
 -- Tests for Evaluate
 

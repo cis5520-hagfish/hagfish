@@ -6,10 +6,12 @@ module ChessEngine
 where
 
 import Chess
+import ChessStrategy
 import Console
 import Data.Char (toLower)
 import Engine
 import Game qualified
+import Strategy
 import System.Console.ANSI qualified as ANSI
 import System.IO (hFlush, stdout)
 
@@ -73,11 +75,21 @@ instance Engine CLIEngine where
 
           doUser = do
             putPrompt "Enter your move: "
-            go eng (opponent current) (n + 1)
+            playerMove <- obtainMove
+            go (CLIEngine pcolor ccolor (Game.play c playerMove)) (opponent current) (n + 1)
+            where
+              obtainMove = do
+                input <- getPrompt
+                case parseMove input c of
+                  Left err -> do
+                    putPrompt err
+                    obtainMove
+                  Right mov -> return mov
 
           doEngine = do
             putPrompt "Thinking..."
-            go eng (opponent current) (n + 1)
+            let (Just engineMove) = bestMove c
+            go (CLIEngine pcolor ccolor (Game.play c engineMove)) (opponent current) (n + 1)
 
 data UCIEngine = UCIEngine {}
 

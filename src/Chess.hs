@@ -11,6 +11,7 @@ module Chess
     opponent,
     prettyChess,
     prettyMove,
+    parseMove,
   )
 where
 
@@ -20,6 +21,9 @@ import Data.List (intercalate)
 import Game
 import Game.Chess
 import Test.QuickCheck
+import Text.Parsec.Char
+import Text.Parsec.Combinator
+import Text.Parsec.Prim
 
 -- | parse a string to a Square
 parseSquare :: String -> Maybe Square
@@ -28,6 +32,45 @@ parseSquare [f, r] =
    in let y = ord r - ord '1'
        in Just $ toEnum (x + y * 8)
 parseSquare _ = Nothing
+
+-- parser combinators
+pSquare = do
+  f <- pRank
+  r <- pIndex
+  return
+    ( let x = ord f - ord 'A'
+       in let y = ord r - ord '1'
+           in toEnum (x + y * 8)
+    )
+  where
+    pRank = satisfy (`elem` "ABCDEFGH")
+    pIndex = satisfy (`elem` "12345678")
+
+pPiece = optionMaybe (pKnight <|> pBishop <|> pRook <|> pQueen)
+  where
+    pKnight = Knight <$ char 'N'
+    pBishop = Bishop <$ char 'B'
+    pRook = Rook <$ char 'R'
+    pQueen = Queen <$ char 'Q'
+
+pPly = do
+  source <- pSquare
+  target <- pSquare
+  promo <- pPiece
+
+  let ply = move source target
+  return
+    ( case promo of
+        Nothing -> ply
+        Just p -> promoteTo ply p
+    )
+
+parseMove :: String -> Chess -> Either String Ply
+parseMove s c =
+  let ply = parse pPly "(unknown)" s
+   in case ply of
+        Left err -> Left "Invalid syntax of move"
+        Right ply -> if valid ply c then Right ply else Left "This is not a valid move"
 
 data Chess = Chess
   { unPosition :: Position,
