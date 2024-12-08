@@ -1,9 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 import Chess
-import Data.Maybe (isNothing)
+import ChessStrategy
+import Data.Maybe (isNothing, isJust)
 import Game
 import Game.Chess
+import Strategy
 import Test.HUnit
 import Test.QuickCheck
 
@@ -39,7 +41,21 @@ prop_chessLengthColor c = case histLength c `mod` 2 of
 prop_chessWhiteStart :: Color -> Bool
 prop_chessWhiteStart c = player ((initial :: Color -> Chess) c) == White
 
--- Tests for Evaluate
+-- Strategy and Evaluation Tests
+prop_bestMoveExists :: Chess -> Property
+prop_bestMoveExists c = 
+  not (null (moves c)) ==> 
+  isJust (bestMove c)
+
+prop_bestMoveValid :: Chess -> Property
+prop_bestMoveValid c = 
+  not (null (moves c)) ==>
+  maybe False (`elem` moves c) (bestMove c)
+
+prop_evaluateConsistent :: Chess -> Bool
+prop_evaluateConsistent c = 
+  let score = evaluate c
+  in score >= -1000 && score <= 1000
 
 return []
 

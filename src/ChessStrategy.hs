@@ -1,8 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module ChessStrategy 
-  (
-
+  ( evaluate,
+    bestMove
   )
 where
 
@@ -20,7 +20,7 @@ instance Evaluate Chess where
   type Score Chess = Double
 
   evaluate :: Chess -> Score Chess
-  evaluate = undefined
+  evaluate c = 1.0  -- Placeholder for evaluation function
 
 instance Strategy Chess where
   bestMove :: Chess -> Maybe (Move Chess)
@@ -73,6 +73,3 @@ minimizingPlayer pos depth alpha beta = go beta (moves pos)
       in if alpha >= newBeta
            then newBeta  -- Alpha cutoff, won't be selected by max player
            else go newBeta rest
-
--- Quicktest
-
