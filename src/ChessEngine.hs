@@ -8,7 +8,7 @@ where
 import Chess
 import ChessStrategy
 import Console
-import Data.Char (toLower)
+import Data.Char (toLower, toUpper)
 import Engine
 import Game qualified
 import Strategy
@@ -63,8 +63,9 @@ instance Engine CLIEngine where
         Game.Loss -> declareWin (opponent current) n
         Game.Draw -> declareDraw n
         Game.Ongoing -> do
-          putStrLn $ prettyChess c
+          putStrLn ""
           putPrompt ("Move " %% show n %% ", " %% colored (map toLower (show current)) Console.White [Console.Bold] %% "'s turn.")
+          putStrLn $ prettyChess c
           if pcolor == current then doUser else doEngine
         where
           declareWin color n = do
@@ -80,7 +81,7 @@ instance Engine CLIEngine where
             where
               obtainMove = do
                 input <- getPrompt
-                case parseMove input c of
+                case parseMove (map toUpper input) c of
                   Left err -> do
                     putPrompt err
                     obtainMove
@@ -89,6 +90,7 @@ instance Engine CLIEngine where
           doEngine = do
             putPrompt "Thinking..."
             let (Just engineMove) = bestMove c
+            putPrompt ("My move is " %% colored (prettyMove engineMove) Console.White [Console.Bold] %% ".")
             go (CLIEngine pcolor ccolor (Game.play c engineMove)) (opponent current) (n + 1)
 
 data UCIEngine = UCIEngine {}
@@ -112,8 +114,8 @@ instance Engine Hagfish where
   initialize ("uci" : rst) = do
     engine <- initialize rst
     return $ UCIFish <$> engine
-  initialize (x : _) = return $ Left ("invalid engine type " ++ x)
-  initialize [] = return $ Left "engine type not provided, cli or uci"
+  initialize (x : _) = return $ Left ("Invalid engine type " ++ x)
+  initialize [] = return $ Left "Engine type not provided, cli or uci"
 
   run :: Hagfish -> IO ()
   run (CLIFish cli) = run cli
