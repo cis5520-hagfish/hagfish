@@ -33,6 +33,8 @@ common common-stanza
     , mtl
     , doctest
     , chessIO
+    , ansi-terminal
+    , parsec
   default-language:
     GHC2021
   default-extensions:
@@ -45,6 +47,10 @@ library
       Game
     , Strategy
     , Chess
+    , ChessStrategy
+    , Engine
+    , ChessEngine
+    , Console
       -- if you add modules to your project, list them here
       -- so that they will be available to the executable and test suite
   hs-source-dirs:
