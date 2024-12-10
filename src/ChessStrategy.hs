@@ -23,19 +23,15 @@ instance Evaluate Chess where
   evaluate c = 1.0  -- Placeholder for evaluation function
 
 instance Strategy Chess where
-  bestMove :: Chess -> Maybe (Move Chess)
-  bestMove pos = case moves pos of
+  scoreMove :: Chess -> Move Chess -> Score Chess
+  scoreMove move = minimax newPos maxDepth (-1000000) 1000000 False
+    where 
+      newPos = play pos move
+        
+  bestMove :: Chess -> Int -> Maybe (Move Chess)
+  bestMove maxDepth pos = case moves pos of
     [] -> Nothing
     validMoves -> Just $ maximumBy (comparing (negate . scoreMove)) validMoves
-    where
-      scoreMove move = 
-        let newPos = play pos move
-            -- Start minimax search with initial alpha-beta bounds
-            score = minimax newPos maxDepth (-infinity) infinity False
-        in score
-
-      maxDepth = 4  -- Adjust based on desired search depth
-      infinity = 1000000
 
 -- | Core minimax function with alpha-beta pruning
 -- maximizing is True when it's our turn, False for opponent's turn
