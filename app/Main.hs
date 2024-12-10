@@ -4,9 +4,7 @@ module Main where
 
 import ChessEngine
 import Console
-import Console qualified
 import Engine
-import Game.Chess.UCI (Info (String))
 import System.Environment (getArgs)
 import System.Exit (ExitCode (ExitFailure), exitWith)
 

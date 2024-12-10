@@ -2,8 +2,8 @@
 
 import Chess
 import ChessStrategy
-import Data.Maybe (isNothing, isJust)
 import Data.List (intercalate)
+import Data.Maybe (isJust, isNothing)
 import Game
 import Game.Chess
 import Strategy
@@ -43,22 +43,24 @@ prop_chessLengthColor c = case histLength c `mod` 2 of
 prop_chessWhiteStart :: Color -> Bool
 prop_chessWhiteStart c = player ((initial :: Color -> Chess) c) == White
 
+prop_chessUndo :: Chess -> Bool
+prop_chessUndo c = all (\m -> unMove (play c m) == c) (moves c)
 
 -- Strategy and Evaluation Tests
 prop_bestMoveExists :: Chess -> Property
-prop_bestMoveExists c = 
-  not (null (moves c)) ==> 
-  isJust (bestMove c)
+prop_bestMoveExists c =
+  not (null (moves c)) ==>
+    isJust (bestMove c)
 
 prop_bestMoveValid :: Chess -> Property
-prop_bestMoveValid c = 
+prop_bestMoveValid c =
   not (null (moves c)) ==>
-  maybe False (`elem` moves c) (bestMove c)
+    maybe False (`elem` moves c) (bestMove c)
 
 prop_evaluateConsistent :: Chess -> Bool
-prop_evaluateConsistent c = 
+prop_evaluateConsistent c =
   let score = evaluate c
-  in score >= -1000 && score <= 1000
+   in score >= -1000 && score <= 1000
 
 prop_parseMove :: Property
 prop_parseMove = forAllShow finalChess showMoves (\c -> all (\m -> parseMove (prettyMove m) c == Right m) (moves c))

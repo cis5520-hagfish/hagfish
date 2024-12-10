@@ -12,12 +12,15 @@ module Chess
     prettyChess,
     prettyMove,
     parseMove,
+    pPly,
+    unMove,
   )
 where
 
-import Data.Char (ord)
+import Data.Char (ord, toUpper)
 import Data.Ix (range)
 import Data.List (intercalate)
+import Data.Maybe (fromMaybe)
 import Game
 import Game.Chess
 import Test.QuickCheck
@@ -43,15 +46,15 @@ pSquare = do
            in toEnum (x + y * 8)
     )
   where
-    pRank = satisfy (`elem` "ABCDEFGH")
+    pRank = toUpper <$> satisfy (`elem` "ABCDEFGHabcdefgh")
     pIndex = satisfy (`elem` "12345678")
 
 pPiece = optionMaybe (pKnight <|> pBishop <|> pRook <|> pQueen)
   where
-    pKnight = Knight <$ char 'N'
-    pBishop = Bishop <$ char 'B'
-    pRook = Rook <$ char 'R'
-    pQueen = Queen <$ char 'Q'
+    pKnight = Knight <$ (char 'N' <|> char 'n')
+    pBishop = Bishop <$ (char 'B' <|> char 'b')
+    pRook = Rook <$ (char 'R' <|> char 'r')
+    pQueen = Queen <$ (char 'Q' <|> char 'q')
 
 pPly = do
   source <- pSquare
@@ -74,7 +77,8 @@ parseMove s c =
 
 data Chess = Chess
   { unPosition :: Position,
-    unHistory :: Maybe Chess
+    unHistory :: Maybe Chess,
+    unPly :: Maybe Ply
   }
   deriving (Eq)
 
@@ -87,7 +91,7 @@ instance Game Chess where
   type Player Chess = Color
 
   initial :: Player Chess -> Chess
-  initial = const $ Chess startpos Nothing
+  initial = const $ Chess startpos Nothing Nothing
 
   status :: Chess -> Player Chess -> Status
   status c p
@@ -123,7 +127,7 @@ instance Game Chess where
   history = unHistory
 
   play :: Chess -> Move Chess -> Chess
-  play c@(Chess p _) m = Chess (unsafeDoPly p m) (Just c)
+  play c@(Chess p _ _) m = Chess (unsafeDoPly p m) (Just c) (Just m)
 
   moves :: Chess -> [Move Chess]
   moves = legalPlies . unPosition
@@ -200,3 +204,6 @@ prettyMove m = show (plySource m) ++ show (plyTarget m) ++ showPromote (plyPromo
     showPromote (Just Rook) = "R"
     showPromote (Just Queen) = "Q"
     showPromote (Just King) = "K"
+
+unMove :: Chess -> Chess
+unMove c = fromMaybe c (unHistory c)

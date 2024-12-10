@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module ChessEngine
   ( Hagfish (..),
@@ -14,8 +15,11 @@ import Game qualified
 import Strategy
 import System.Console.ANSI qualified as ANSI
 import System.IO (hFlush, stdout)
+import Text.Parsec.Char
+import Text.Parsec.Combinator
+import Text.Parsec.Prim
 
-data CLIEngine = CLIEngine
+data Hagfish = Hagfish
   { playerColor :: Color,
     engineColor :: Color,
     board :: Chess
@@ -30,8 +34,27 @@ getPrompt = do
   hFlush stdout
   getLine
 
-instance Engine CLIEngine where
-  initialize :: [String] -> IO (Either String CLIEngine)
+data UserAction
+  = ActionUndo
+  | ActionMove Ply
+  | ActionHelp
+  | ActionAnalysis
+  | ActionConfig
+
+putHelp =
+  putPrompt
+    ( "You can use "
+        %% colored ".help" Console.White [Console.Bold]
+        %% " to show help, "
+        %% colored ".analysis" Console.White [Console.Bold]
+        %% " to show analysis,\n         "
+        %% colored ".config" Console.White [Console.Bold]
+        %% " to adjust engine options or "
+        %% colored "make a move" Console.White [Console.Bold]
+    )
+
+instance Engine Hagfish where
+  initialize :: [String] -> IO (Either String Hagfish)
   initialize _ = do
     clear
 
@@ -41,7 +64,7 @@ instance Engine CLIEngine where
 
     putPrompt ("Game started! You are playing as " %% colored (map toLower $ show playerColor) Console.White [Console.Bold] %% ".")
 
-    return (Right $ CLIEngine playerColor (opponent playerColor) (Game.initial Chess.White))
+    return (Right $ Hagfish playerColor (opponent playerColor) (Game.initial Chess.White))
     where
       obtainColor = do
         c <- getPrompt
@@ -55,10 +78,10 @@ instance Engine CLIEngine where
                 putPrompt ("Choose between " %% colored "White/white/w" Console.White [Console.Bold] %% " or " %% colored "Black/black/b" Console.White [Console.Bold] %% ".")
                 obtainColor
 
-  run :: CLIEngine -> IO ()
-  run eng@(CLIEngine playerColor computerColor c) = go eng Chess.White 1
+  run :: Hagfish -> IO ()
+  run eng@(Hagfish playerColor computerColor c) = go eng Chess.White 1
     where
-      go eng@(CLIEngine pcolor ccolor c) current n = case Game.status c current of
+      go eng@(Hagfish pcolor ccolor c) current n = case Game.status c current of
         Game.Win -> declareWin current n
         Game.Loss -> declareWin (opponent current) n
         Game.Draw -> declareDraw n
@@ -75,48 +98,37 @@ instance Engine CLIEngine where
             putPrompt ("Draw after " %% show n %% "moves.")
 
           doUser = do
-            putPrompt "Enter your move: "
-            playerMove <- obtainMove
-            go (CLIEngine pcolor ccolor (Game.play c playerMove)) (opponent current) (n + 1)
+            putPrompt "Enter your move or command: "
+            input <- getPrompt
+            let cmd = parse pCommand "(unknown)" input
+            case cmd of
+              Left _ -> do
+                putPrompt ("Invalid command '" %% input %% "', showing the help message")
+                putHelp
+                doUser
+              Right ActionHelp -> putHelp >> doUser
+              Right ActionUndo ->
+                if n < 3
+                  then putPrompt "You can not undo move anymore." >> doUser
+                  else go (Hagfish pcolor ccolor (unMove (unMove c))) current (n - 2)
+              Right (ActionMove move) ->
+                if Game.valid move c
+                  then go (Hagfish pcolor ccolor (Game.play c move)) (opponent current) (n + 1)
+                  else putPrompt (colored (prettyMove move) Console.White [Console.Bold] %% " is not a valid move.") >> doUser
+              _ -> error "Unimplemented user action"
             where
-              obtainMove = do
-                input <- getPrompt
-                case parseMove (map toUpper input) c of
-                  Left err -> do
-                    putPrompt err
-                    obtainMove
-                  Right mov -> return mov
+              pHelp = ActionHelp <$ string ".help"
+              pAnalysis = ActionAnalysis <$ string ".analysis"
+              pOption = ActionConfig <$ string ".config"
+              pUnMove = ActionUndo <$ string ".undo"
+              pMove = ActionMove <$> pPly
+
+              pCommand = pHelp <|> pAnalysis <|> pOption <|> pUnMove <|> pMove
+
+          -- go (Hagfish pcolor ccolor (Game.play c playerMove)) (opponent current) (n + 1)
 
           doEngine = do
             putPrompt "Thinking..."
             let (Just engineMove) = bestMove c
             putPrompt ("My move is " %% colored (prettyMove engineMove) Console.White [Console.Bold] %% ".")
-            go (CLIEngine pcolor ccolor (Game.play c engineMove)) (opponent current) (n + 1)
-
-data UCIEngine = UCIEngine {}
-
-instance Engine UCIEngine where
-  initialize :: [String] -> IO (Either String UCIEngine)
-  initialize = undefined
-
-  run :: UCIEngine -> IO ()
-  run = undefined
-
-data Hagfish
-  = CLIFish CLIEngine
-  | UCIFish UCIEngine
-
-instance Engine Hagfish where
-  initialize :: [String] -> IO (Either String Hagfish)
-  initialize ("cli" : rst) = do
-    engine <- initialize rst
-    return $ CLIFish <$> engine
-  initialize ("uci" : rst) = do
-    engine <- initialize rst
-    return $ UCIFish <$> engine
-  initialize (x : _) = return $ Left ("Invalid engine type " ++ x)
-  initialize [] = return $ Left "Engine type not provided, cli or uci"
-
-  run :: Hagfish -> IO ()
-  run (CLIFish cli) = run cli
-  run (UCIFish uci) = run uci
+            go (Hagfish pcolor ccolor (Game.play c engineMove)) (opponent current) (n + 1)
