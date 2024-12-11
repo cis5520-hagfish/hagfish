@@ -1,37 +1,39 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module ChessStrategy 
+module ChessStrategy
   ( evaluate,
-    bestMove
+    bestMove,
   )
 where
 
-import Strategy 
+import Chess (Chess)
+import Data.Foldable (maximumBy)
+import Data.Ord (comparing)
+import Game (Game (..))
+import Strategy
   ( Evaluate (..),
     Score (..),
     Strategy (..),
   )
-import Chess ( Chess )
-import Game (Game(..))
-import Data.Ord (comparing)
-import Data.Foldable (maximumBy)
 
 instance Evaluate Chess where
   type Score Chess = Double
 
   evaluate :: Chess -> Score Chess
-  evaluate c = 1.0  -- Placeholder for evaluation function
+  evaluate c = 1.0 -- Placeholder for evaluation function
 
 instance Strategy Chess where
-  scoreMove :: Chess -> Move Chess -> Score Chess
-  scoreMove move = minimax newPos maxDepth (-1000000) 1000000 False
-    where 
+  type Level Chess = Int
+
+  scoreMove :: Level Chess -> Chess -> Move Chess -> Score Chess
+  scoreMove maxDepth pos move = minimax newPos maxDepth (-1000000) 1000000 False
+    where
       newPos = play pos move
-        
-  bestMove :: Chess -> Int -> Maybe (Move Chess)
+
+  bestMove :: Level Chess -> Chess -> Maybe (Move Chess)
   bestMove maxDepth pos = case moves pos of
     [] -> Nothing
-    validMoves -> Just $ maximumBy (comparing (negate . scoreMove)) validMoves
+    validMoves -> Just $ maximumBy (comparing (negate . scoreMove maxDepth pos)) validMoves
 
 -- | Core minimax function with alpha-beta pruning
 -- maximizing is True when it's our turn, False for opponent's turn
@@ -41,8 +43,8 @@ minimax pos depth alpha beta maximizing
   | depth == 0 = evaluate pos
   | null (moves pos) = evaluate pos
   -- Recursive case
-  | otherwise = 
-      if maximizing 
+  | otherwise =
+      if maximizing
         then maximizingPlayer pos depth alpha beta
         else minimizingPlayer pos depth alpha beta
 
@@ -50,22 +52,22 @@ maximizingPlayer :: Chess -> Int -> Double -> Double -> Double
 maximizingPlayer pos depth alpha beta = go alpha (moves pos)
   where
     go a [] = a
-    go a (move:rest) = 
+    go a (move : rest) =
       let newPos = play pos move
           score = minimax newPos (depth - 1) a beta False
           newAlpha = max a score
-      in if newAlpha >= beta
-           then newAlpha  -- Beta cutoff, won't be selected by min player
-           else go newAlpha rest
+       in if newAlpha >= beta
+            then newAlpha -- Beta cutoff, won't be selected by min player
+            else go newAlpha rest
 
 minimizingPlayer :: Chess -> Int -> Double -> Double -> Double
 minimizingPlayer pos depth alpha beta = go beta (moves pos)
   where
     go b [] = b
-    go b (move:rest) = 
+    go b (move : rest) =
       let newPos = play pos move
           score = minimax newPos (depth - 1) alpha b True
           newBeta = min b score
-      in if alpha >= newBeta
-           then newBeta  -- Alpha cutoff, won't be selected by max player
-           else go newBeta rest
+       in if alpha >= newBeta
+            then newBeta -- Alpha cutoff, won't be selected by max player
+            else go newBeta rest

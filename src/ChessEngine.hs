@@ -18,11 +18,13 @@ import System.IO (hFlush, stdout)
 import Text.Parsec.Char
 import Text.Parsec.Combinator
 import Text.Parsec.Prim
+import Text.Read (readMaybe)
 
 data Hagfish = Hagfish
   { playerColor :: Color,
     engineColor :: Color,
-    board :: Chess
+    board :: Chess,
+    level :: Int
   }
 
 putPrompt :: (ToStyled a) => a -> IO ()
@@ -39,7 +41,7 @@ data UserAction
   | ActionMove Ply
   | ActionHelp
   | ActionAnalysis
-  | ActionConfig
+  | ActionLevel (Maybe Int)
 
 putHelp =
   putPrompt
@@ -48,8 +50,8 @@ putHelp =
         %% " to show help, "
         %% colored ".analysis" Console.White [Console.Bold]
         %% " to show analysis,\n         "
-        %% colored ".config" Console.White [Console.Bold]
-        %% " to adjust engine options or "
+        %% colored ".level {n}" Console.White [Console.Bold]
+        %% " to adjust engine search depth or "
         %% colored "make a move" Console.White [Console.Bold]
     )
 
@@ -64,7 +66,7 @@ instance Engine Hagfish where
 
     putPrompt ("Game started! You are playing as " %% colored (map toLower $ show playerColor) Console.White [Console.Bold] %% ".")
 
-    return (Right $ Hagfish playerColor (opponent playerColor) (Game.initial Chess.White))
+    return (Right $ Hagfish playerColor (opponent playerColor) (Game.initial Chess.White) 4)
     where
       obtainColor = do
         c <- getPrompt
@@ -79,9 +81,9 @@ instance Engine Hagfish where
                 obtainColor
 
   run :: Hagfish -> IO ()
-  run eng@(Hagfish playerColor computerColor c) = go eng Chess.White 1
+  run eng@(Hagfish playerColor computerColor c level) = go eng Chess.White 1
     where
-      go eng@(Hagfish pcolor ccolor c) current n = case Game.status c current of
+      go eng@(Hagfish pcolor ccolor c level) current n = case Game.status c current of
         Game.Win -> declareWin current n
         Game.Loss -> declareWin (opponent current) n
         Game.Draw -> declareDraw n
@@ -89,7 +91,7 @@ instance Engine Hagfish where
           putStrLn ""
           putPrompt ("Move " %% show n %% ", " %% colored (map toLower (show current)) Console.White [Console.Bold] %% "'s turn.")
           putStrLn $ prettyChess c
-          if pcolor == current then doUser else doEngine
+          if pcolor == current then doUser eng else doEngine
         where
           declareWin color n = do
             putPrompt ("Player " %% colored (map toLower (show color)) Console.White [Console.Bold] %% "win after " %% show n %% " moves.")
@@ -97,38 +99,70 @@ instance Engine Hagfish where
           declareDraw n = do
             putPrompt ("Draw after " %% show n %% "moves.")
 
-          doUser = do
+          doUser eng'@(Hagfish pcolor' ccolor' c' level') = do
             putPrompt "Enter your move or command: "
             input <- getPrompt
             let cmd = parse pCommand "(unknown)" input
             case cmd of
-              Left _ -> do
+              Left err -> do
                 putPrompt ("Invalid command '" %% input %% "', showing the help message")
                 putHelp
-                doUser
-              Right ActionHelp -> putHelp >> doUser
+                doUser eng'
+              Right ActionHelp -> putHelp >> doUser eng'
               Right ActionUndo ->
                 if n < 3
-                  then putPrompt "You can not undo move anymore." >> doUser
-                  else go (Hagfish pcolor ccolor (unMove (unMove c))) current (n - 2)
+                  then putPrompt "You can not undo move anymore. This is your first move!" >> doUser eng'
+                  else go (Hagfish pcolor' ccolor' (unMove (unMove c')) level') current (n - 2)
               Right (ActionMove move) ->
                 if Game.valid move c
-                  then go (Hagfish pcolor ccolor (Game.play c move)) (opponent current) (n + 1)
-                  else putPrompt (colored (prettyMove move) Console.White [Console.Bold] %% " is not a valid move.") >> doUser
-              _ -> error "Unimplemented user action"
+                  then go (Hagfish pcolor' ccolor' (Game.play c' move) level') (opponent current) (n + 1)
+                  else putPrompt (colored (prettyMove move) Console.Red [Console.Bold] %% " is not a valid move.") >> doUser eng'
+              Right (ActionLevel Nothing) ->
+                putPrompt
+                  ( "Current search depth is "
+                      %% colored (show level') Console.Green [Console.Bold]
+                      %% "."
+                  )
+                  >> doUser eng'
+              Right (ActionLevel (Just l)) ->
+                putPrompt
+                  ( "Setting search depth to "
+                      %% colored (show l) Console.Green [Console.Bold]
+                      %% "."
+                  )
+                  >> doUser (Hagfish pcolor' ccolor' c' l)
+              Right ActionAnalysis -> do
+                putPrompt
+                  ( "Analysis moves with depth "
+                      %% colored (show level') Console.Green [Console.Bold]
+                      %% ". To adjust depth, use "
+                      %% colored ".level {n}" Console.White [Console.Bold]
+                      %% "."
+                  )
+                mapM_
+                  ( \m -> do
+                      let score = scoreMove level' c' m
+                      putStyleLn ("          " %% colored (prettyMove m) Console.White [Console.Bold] %% " => " %% show score)
+                  )
+                  (Game.moves c')
+                doUser eng'
             where
-              pHelp = ActionHelp <$ string ".help"
-              pAnalysis = ActionAnalysis <$ string ".analysis"
-              pOption = ActionConfig <$ string ".config"
-              pUnMove = ActionUndo <$ string ".undo"
+              pHelp = ActionHelp <$ string "help"
+              pAnalysis = ActionAnalysis <$ string "analysis"
+              pOption =
+                ActionLevel <$> do
+                  string "level"
+                  i <- optionMaybe (spaces >> many1 digit)
+                  return (readMaybe =<< i)
+              pUnMove = ActionUndo <$ string "undo"
               pMove = ActionMove <$> pPly
 
-              pCommand = pHelp <|> pAnalysis <|> pOption <|> pUnMove <|> pMove
+              pCommand = (char '.' >> (pAnalysis <|> pHelp <|> pOption <|> pUnMove)) <|> pMove
 
           -- go (Hagfish pcolor ccolor (Game.play c playerMove)) (opponent current) (n + 1)
 
           doEngine = do
             putPrompt "Thinking..."
-            let (Just engineMove) = bestMove c
-            putPrompt ("My move is " %% colored (prettyMove engineMove) Console.White [Console.Bold] %% ".")
-            go (Hagfish pcolor ccolor (Game.play c engineMove)) (opponent current) (n + 1)
+            let (Just engineMove) = bestMove level c
+            putPrompt ("My move is " %% colored (prettyMove engineMove) Console.Cyan [Console.Bold] %% ".")
+            go (Hagfish pcolor ccolor (Game.play c engineMove) level) (opponent current) (n + 1)

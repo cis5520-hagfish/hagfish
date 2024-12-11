@@ -19,13 +19,11 @@ class (Game a, Ord (Score a)) => Evaluate a where
   -- | evaluate the current situation, larger score means better and smaller score means worse
   evaluate :: a -> Score a
 
-  -- | evaluate a move under the current situation
-  evaluateMove :: a -> Move a -> Score a
-  evaluateMove c m = evaluate (play c m)
-
 class (Evaluate a) => Strategy a where
+  type Level a :: Type
+
   -- | return the best move if there is one
-  bestMove :: a -> Maybe (Move a)
-  bestMove s = case moves s of
-    [] -> Nothing
-    x -> x & map (\m -> (evaluateMove s m, m)) & maximumBy (comparing fst) & Just . snd
+  scoreMove :: Level a -> a -> Move a -> Score a
+
+  -- | return the best move if there is one
+  bestMove :: Level a -> a -> Maybe (Move a)
