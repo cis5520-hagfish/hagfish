@@ -105,7 +105,7 @@ instance Engine Hagfish where
             let cmd = parse pCommand "(unknown)" input
             case cmd of
               Left err -> do
-                putPrompt ("Invalid command '" %% input %% "', showing the help message")
+                putPrompt ("Unknown syntax command or move '" %% input %% "', showing the help message")
                 putHelp
                 doUser eng'
               Right ActionHelp -> putHelp >> doUser eng'

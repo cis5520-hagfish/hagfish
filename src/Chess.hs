@@ -60,6 +60,7 @@ pPly = do
   source <- pSquare
   target <- pSquare
   promo <- pPiece
+  eof
 
   let ply = move source target
   return
