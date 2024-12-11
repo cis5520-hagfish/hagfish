@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 import Chess
+import ChessEngine
 import ChessStrategy
 import Data.List (intercalate)
 import Data.Maybe (isJust, isNothing)
@@ -9,6 +10,7 @@ import Game.Chess
 import Strategy
 import Test.HUnit
 import Test.QuickCheck
+import Text.Parsec.Prim
 
 finalChess :: Gen Chess
 finalChess = resize 200 (arbitrary :: Gen Chess)
@@ -27,7 +29,7 @@ prop_chessFinal p = forAll finalChess $ \c ->
   status c p /= Ongoing ==> case status c p of
     Loss -> null (moves c) && inCheck p (unPosition c)
     Win -> null (moves c) && inCheck (opponent p) (unPosition c)
-    Draw -> True -- TODO: check this status
+    Draw -> True
     _ -> error "unreachable"
 
 prop_chessLengthColor :: Chess -> Bool
@@ -61,6 +63,13 @@ prop_evaluateConsistent :: Chess -> Bool
 prop_evaluateConsistent c =
   let score = evaluate c
    in score >= -1000 && score <= 1000
+
+parseMove :: String -> Chess -> Either String Ply
+parseMove s c =
+  let ply = parse pPly "(unknown)" s
+   in case ply of
+        Left err -> Left "Invalid syntax of move"
+        Right ply -> if valid ply c then Right ply else Left "This is not a valid move"
 
 prop_parseMove :: Property
 prop_parseMove = forAllShow finalChess showMoves (\c -> all (\m -> parseMove (prettyMove m) c == Right m) (moves c))
@@ -381,6 +390,45 @@ collectedFEN =
 test_allFEN :: Test
 test_allFEN = TestList $ map (uncurry test_singleFEN) collectedFEN
 
+test_pPly :: Test
+test_pPly =
+  TestList $
+    map
+      testParseMove
+      [ ("e2e3", Right (move E2 E3)),
+        ("j8j100", Left ""),
+        ("e4e5q", Right (promoteTo (move E4 E5) Queen)),
+        ("h4h5", Right (move H4 H5)),
+        ("what's up boy", Left "")
+      ]
+  where
+    testParseMove (str, mov) =
+      let parsed = case parse pPly "(unknown)" str of
+            Left _ -> Left ""
+            Right mov -> Right mov
+       in TestCase $ assertEqual "move should be matched" parsed mov
+
+test_pCommand :: Test
+test_pCommand =
+  TestList $
+    map
+      testParseCommand
+      [ (".help", Right ActionHelp),
+        (".level", Right (ActionLevel Nothing)),
+        (".level oh", Left ""),
+        (".level 3", Right (ActionLevel (Just 3))),
+        ("e2e4", Right (ActionMove (move E2 E4))),
+        (".analysis", Right ActionAnalysis),
+        (".level .help", Left ""),
+        ("e2e100", Left "")
+      ]
+  where
+    testParseCommand (str, act) =
+      let parsed = case parse pCommand "(unknown)" str of
+            Left _ -> Left ""
+            Right mov -> Right mov
+       in TestCase $ assertEqual "command should be matched" parsed act
+
 return []
 
 runTests = $quickCheckAll
@@ -392,4 +440,6 @@ main = do
 
   putStrLn "\n=====Unit Tests==============================="
   runTestTT test_allFEN
+  runTestTT test_pPly
+  runTestTT test_pCommand
   putStrLn "==============================================="

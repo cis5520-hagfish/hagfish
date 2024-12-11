@@ -3,12 +3,15 @@
 
 module ChessEngine
   ( Hagfish (..),
+    pCommand,
+    UserAction (..),
   )
 where
 
 import Chess
 import ChessStrategy
 import Console
+import Control.Monad.Identity (Identity)
 import Data.Char (toLower, toUpper)
 import Engine
 import Game qualified
@@ -42,6 +45,7 @@ data UserAction
   | ActionHelp
   | ActionAnalysis
   | ActionLevel (Maybe Int)
+  deriving (Show, Eq)
 
 putHelp =
   putPrompt
@@ -54,6 +58,23 @@ putHelp =
         %% " to adjust engine search depth or "
         %% colored "make a move" Console.White [Console.Bold]
     )
+
+pCommand :: ParsecT String u Identity UserAction
+pCommand = (char '.' >> (pAnalysis <|> pHelp <|> pOption <|> pUnMove)) <|> pMove
+  where
+    pHelp = ActionHelp <$ string "help"
+
+    pAnalysis = ActionAnalysis <$ string "analysis"
+
+    pOption =
+      ActionLevel <$> do
+        string "level"
+        i <- optionMaybe (spaces >> many1 digit)
+        return (readMaybe =<< i)
+
+    pUnMove = ActionUndo <$ string "undo"
+
+    pMove = ActionMove <$> pPly
 
 instance Engine Hagfish where
   initialize :: [String] -> IO (Either String Hagfish)
@@ -146,18 +167,6 @@ instance Engine Hagfish where
                   )
                   (Game.moves c')
                 doUser eng'
-            where
-              pHelp = ActionHelp <$ string "help"
-              pAnalysis = ActionAnalysis <$ string "analysis"
-              pOption =
-                ActionLevel <$> do
-                  string "level"
-                  i <- optionMaybe (spaces >> many1 digit)
-                  return (readMaybe =<< i)
-              pUnMove = ActionUndo <$ string "undo"
-              pMove = ActionMove <$> pPly
-
-              pCommand = (char '.' >> (pAnalysis <|> pHelp <|> pOption <|> pUnMove)) <|> pMove
 
           -- go (Hagfish pcolor ccolor (Game.play c playerMove)) (opponent current) (n + 1)
 

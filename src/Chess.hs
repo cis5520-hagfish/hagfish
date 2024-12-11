@@ -11,7 +11,6 @@ module Chess
     opponent,
     prettyChess,
     prettyMove,
-    parseMove,
     pPly,
     unMove,
   )
@@ -27,6 +26,7 @@ import Test.QuickCheck
 import Text.Parsec.Char
 import Text.Parsec.Combinator
 import Text.Parsec.Prim
+import Control.Monad.Identity (Identity)
 
 -- | parse a string to a Square
 parseSquare :: String -> Maybe Square
@@ -56,6 +56,7 @@ pPiece = optionMaybe (pKnight <|> pBishop <|> pRook <|> pQueen)
     pRook = Rook <$ (char 'R' <|> char 'r')
     pQueen = Queen <$ (char 'Q' <|> char 'q')
 
+pPly :: ParsecT String u Identity Ply
 pPly = do
   source <- pSquare
   target <- pSquare
@@ -68,13 +69,6 @@ pPly = do
         Nothing -> ply
         Just p -> promoteTo ply p
     )
-
-parseMove :: String -> Chess -> Either String Ply
-parseMove s c =
-  let ply = parse pPly "(unknown)" s
-   in case ply of
-        Left err -> Left "Invalid syntax of move"
-        Right ply -> if valid ply c then Right ply else Left "This is not a valid move"
 
 data Chess = Chess
   { unPosition :: Position,
