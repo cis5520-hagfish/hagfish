@@ -22,8 +22,8 @@ import Data.Ix (range)
 
 -- | this gives the ``value`` for White, thus if evaluating black you need to
 -- | take negative
-pieceValue' :: PieceType -> Square -> Int
-pieceValue' Pawn sq = 100 * (pawnValue ! fromEnum sq)
+pieceValue' :: PieceType -> Int -> Int
+pieceValue' Pawn sq = 100 * (pawnValue ! sq)
   where pawnValue = fromList [0,   0,   0,   0,   0,   0,   0,   0, -- A1~H1
                             -31,   8,  -7, -37, -36, -14,   3, -31, -- A2~H2
                             -22,   9,   5, -11, -10,  -2,   3, -19, -- A3~H3
@@ -32,7 +32,7 @@ pieceValue' Pawn sq = 100 * (pawnValue ! fromEnum sq)
                               7,  29,  21,  44,  40,  31,  44,   7, -- A6~H6
                               78,  83,  86,  73, 102,  82,  85,  90, -- A7~H7
                               0,   0,   0,   0,   0,   0,   0,   0] -- A8~H8
-pieceValue' Knight sq = 280 * (knightValue ! fromEnum sq)
+pieceValue' Knight sq = 280 * (knightValue ! sq)
   where knightValue = fromList [-74, -23, -26, -24, -19, -35, -22, -69,
                                 -23, -15,   2,   0,   2,   0, -23, -20,
                                 -18,  10,  13,  22,  18,  15,  11, -14,
@@ -41,7 +41,7 @@ pieceValue' Knight sq = 280 * (knightValue ! fromEnum sq)
                                  10,  67,   1,  74,  73,  27,  62,  -2,
                                  -3,  -6, 100, -36,   4,  62,  -4, -14,
                                 -66, -53, -75, -75, -10, -55, -58, -70]
-pieceValue' Bishop sq = 320 * (bishopValue ! fromEnum sq)
+pieceValue' Bishop sq = 320 * (bishopValue ! sq)
   where bishopValue = fromList [-7,   2, -15, -12, -14, -15, -10, -10,
                                 19,  20,  11,   6,   7,   6,  20,  16,
                                 14,  25,  24,  15,   8,  25,  20,  15,
@@ -50,7 +50,7 @@ pieceValue' Bishop sq = 320 * (bishopValue ! fromEnum sq)
                                 -9,  39, -32,  41,  52, -10,  28, -14,
                                -11,  20,  35, -42, -39,  31,   2, -22,
                                -59, -78, -82, -76, -23,-107, -37, -50]
-pieceValue' Rook sq = 479 * (rookValue ! fromEnum sq)
+pieceValue' Rook sq = 479 * (rookValue ! sq)
   where rookValue = fromList [-30, -24, -18,   5,  -2, -18, -31, -32,
                               -53, -38, -31, -26, -29, -43, -44, -53,
                               -42, -28, -42, -25, -25, -35, -26, -46,
@@ -59,7 +59,7 @@ pieceValue' Rook sq = 479 * (rookValue ! fromEnum sq)
                                19,  35,  28,  33,  45,  27,  25,  15,
                                55,  29,  56,  67,  55,  62,  34,  60,
                                35,  29,  33,   4,  37,  33,  56,  50]
-pieceValue' Queen sq = 929 * (queenValue ! fromEnum sq)
+pieceValue' Queen sq = 929 * (queenValue ! sq)
   where queenValue = fromList [-39, -30, -31, -13, -31, -36, -34, -42,
                                -36, -18,   0, -19, -15, -15, -21, -38,
                                -30,  -6, -13, -11, -16, -11, -16, -27,
@@ -68,7 +68,7 @@ pieceValue' Queen sq = 929 * (queenValue ! fromEnum sq)
                                 -2,  43,  32,  60,  72,  63,  43,   2,
                                 14,  32,  60, -10,  20,  76,  57,  24,
                                  6,   1,  -8,-104,  69,  24,  88,  26]
-pieceValue' King sq = 60000 * (kingValue ! fromEnum sq)
+pieceValue' King sq = 60000 * (kingValue ! sq)
   where kingValue = fromList [17,  30,  -3, -14,   6,  -1,  40,  18,
                               -4,   3, -14, -50, -57, -18,  13,   4,
                              -47, -42, -43, -79, -64, -32, -29, -32,
@@ -78,12 +78,13 @@ pieceValue' King sq = 60000 * (kingValue ! fromEnum sq)
                              -32,  10,  55,  56,  56,  55,  10,   3,
                                4,  54,  47, -99, -99,  60,  83, -62]
 
-pieceValue :: Maybe (Color, PieceType) -> Square -> Int
+pieceValue :: Maybe (Color, PieceType) -> Int -> Int
 pieceValue Nothing _ = 0
-pieceValue (Just (c, p)) sq = let v = pieceValue' p sq in if c == White then v else -v
+pieceValue (Just (c, p)) sq = if c == White then pieceValue' p sq else - (pieceValue' p (reflex sq))
+  where reflex sq = let (x, y) = sq `divMod` 8 in (7 - x) * 8 + y
 
 positionValue :: Position -> Int
-positionValue p = sum $ Data.Vector.map (\s -> pieceValue (pieceAt p s) s) squares
+positionValue p = sum $ Data.Vector.map (\s -> pieceValue (pieceAt p s) (fromEnum s)) squares
   where squares = fromList $ range (minBound, maxBound :: Square)
 
 

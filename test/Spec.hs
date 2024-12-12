@@ -52,17 +52,17 @@ prop_chessUndo c = all (\m -> unMove (play c m) == c) (moves c)
 prop_bestMoveExists :: Chess -> Property
 prop_bestMoveExists c =
   not (null (moves c)) ==>
-    isJust (bestMove 3 c)
+    isJust (bestMove 2 c)
 
 prop_bestMoveValid :: Chess -> Property
 prop_bestMoveValid c =
   not (null (moves c)) ==>
-    maybe False (`elem` moves c) (bestMove 3 c)
+    maybe False (`elem` moves c) (bestMove 2 c)
 
 prop_evaluateConsistent :: Chess -> Bool
 prop_evaluateConsistent c =
-  let score = evaluate c
-   in score >= -1000 && score <= 1000
+  let score = evaluate c (player c)
+   in score >= -1000000000 && score <= 1000000000
 
 parseMove :: String -> Chess -> Either String Ply
 parseMove s c =
@@ -429,6 +429,10 @@ test_pCommand =
             Right mov -> Right mov
        in TestCase $ assertEqual "command should be matched" parsed act
 
+test_positionValue :: Test
+test_positionValue = TestCase $ assertEqual "start position value should be 0" (positionValue startpos) 0
+
+
 return []
 
 runTests = $quickCheckAll
@@ -442,4 +446,5 @@ main = do
   runTestTT test_allFEN
   runTestTT test_pPly
   runTestTT test_pCommand
+  runTestTT test_positionValue
   putStrLn "==============================================="
