@@ -35,6 +35,7 @@ common common-stanza
     , chessIO
     , ansi-terminal
     , parsec
+    , vector
   default-language:
     GHC2021
   default-extensions:

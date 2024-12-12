@@ -45,6 +45,7 @@ data UserAction
   | ActionHelp
   | ActionAnalysis
   | ActionLevel (Maybe Int)
+  | ActionScore
   deriving (Show, Eq)
 
 putHelp =
@@ -60,7 +61,7 @@ putHelp =
     )
 
 pCommand :: ParsecT String u Identity UserAction
-pCommand = (char '.' >> (pAnalysis <|> pHelp <|> pOption <|> pUnMove)) <|> pMove
+pCommand = (char '.' >> (pAnalysis <|> pHelp <|> pOption <|> pUnMove <|> pScore)) <|> pMove
   where
     pHelp = ActionHelp <$ string "help"
 
@@ -75,6 +76,8 @@ pCommand = (char '.' >> (pAnalysis <|> pHelp <|> pOption <|> pUnMove)) <|> pMove
     pUnMove = ActionUndo <$ string "undo"
 
     pMove = ActionMove <$> pPly
+
+    pScore = ActionScore <$ string "score"
 
 instance Engine Hagfish where
   initialize :: [String] -> IO (Either String Hagfish)
@@ -166,6 +169,9 @@ instance Engine Hagfish where
                       putStyleLn ("          " %% colored (prettyMove m) Console.White [Console.Bold] %% " => " %% show score)
                   )
                   (Game.moves c')
+                doUser eng'
+              Right ActionScore -> do
+                putPrompt ("Current board value is " %% show (positionValue (unPosition c')))
                 doUser eng'
 
           -- go (Hagfish pcolor ccolor (Game.play c playerMove)) (opponent current) (n + 1)
