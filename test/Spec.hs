@@ -429,8 +429,8 @@ test_pCommand =
             Right mov -> Right mov
        in TestCase $ assertEqual "command should be matched" parsed act
 
-test_positionValue :: Test
-test_positionValue = TestCase $ assertEqual "start position value should be 0" (positionValue startpos) 0
+prop_initialPositionValue :: Color -> Bool
+prop_initialPositionValue c = positionValue startpos c ==  0
 
 
 return []
@@ -446,5 +446,4 @@ main = do
   runTestTT test_allFEN
   runTestTT test_pPly
   runTestTT test_pCommand
-  runTestTT test_positionValue
   putStrLn "==============================================="

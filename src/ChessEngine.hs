@@ -115,7 +115,7 @@ instance Engine Hagfish where
           putStrLn ""
           putPrompt ("Move " %% show n %% ", " %% colored (map toLower (show current)) Console.White [Console.Bold] %% "'s turn.")
           putStrLn $ prettyChess c
-          if pcolor == current then doUser eng else doEngine
+          if pcolor == current then doUser eng else doUser eng
         where
           declareWin color n = do
             putPrompt ("Player " %% colored (map toLower (show color)) Console.White [Console.Bold] %% "win after " %% show n %% " moves.")
@@ -171,7 +171,7 @@ instance Engine Hagfish where
                   (Game.moves c')
                 doUser eng'
               Right ActionScore -> do
-                putPrompt ("Current board value is " %% show (positionValue (unPosition c')))
+                putPrompt ("Current board value is " %% show (positionValue (unPosition c') current))
                 doUser eng'
 
           -- go (Hagfish pcolor ccolor (Game.play c playerMove)) (opponent current) (n + 1)

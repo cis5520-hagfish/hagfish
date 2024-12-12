@@ -83,8 +83,9 @@ pieceValue Nothing _ = 0
 pieceValue (Just (c, p)) sq = if c == White then pieceValue' p sq else - (pieceValue' p (reflex sq))
   where reflex sq = let (x, y) = sq `divMod` 8 in (7 - x) * 8 + y
 
-positionValue :: Position -> Int
-positionValue p = sum $ Data.Vector.map (\s -> pieceValue (pieceAt p s) (fromEnum s)) squares
+positionValue :: Position -> Color -> Int
+positionValue p c = let v = sum $ Data.Vector.map (\s -> pieceValue (pieceAt p s) (fromEnum s)) squares in
+    if c == White then v else -v
   where squares = fromList $ range (minBound, maxBound :: Square)
 
 
@@ -92,10 +93,7 @@ instance Evaluate Chess where
   type Score Chess = Int
 
   evaluate :: Chess -> Player Chess -> Score Chess
-  evaluate c p = let moveValue = scoreMaybePosition (Just c) - scoreMaybePosition (unHistory c) in
-      if p == White then moveValue else -moveValue
-    where scoreMaybePosition Nothing = 0
-          scoreMaybePosition (Just p) = positionValue (unPosition p) 
+  evaluate c = positionValue (unPosition c)
 
 instance Strategy Chess where
   type Level Chess = Int
