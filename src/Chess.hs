@@ -106,7 +106,7 @@ instance Game Chess where
          in let inThreeRep c = case repetitions (fullHistory c []) of
                   Just (n, _) -> n >= 3
                   Nothing -> False
-             in inStalemate c || inThreeRep c
+             in inStalemate c || inThreeRep c || insufficientMaterial (unPosition c)
         where
           fullHistory c acc =
             unPosition c

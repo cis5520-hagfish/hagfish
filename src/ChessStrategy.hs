@@ -12,7 +12,7 @@ import Chess (Chess (unHistory, unPosition))
 import Data.Foldable (maximumBy)
 import Data.Ord (comparing)
 import Data.Vector (fromList, (!), map)
-import Game (Game (..))
+import Game (Game (..), Status (..))
 import Strategy
   ( Evaluate (..),
     Score (..),
@@ -88,22 +88,17 @@ positionValue p c = let v = sum $ Data.Vector.map (\s -> pieceValue (pieceAt p s
     if c == White then v else -v
   where squares = fromList $ range (minBound, maxBound :: Square)
 
+scoreInf = 1000000000
+
 
 instance Evaluate Chess where
   type Score Chess = Int
 
   evaluate :: Chess -> Player Chess -> Score Chess
-  evaluate c player
-    | isCheckmate c player = checkmate player
-    | otherwise = positionValue (unPosition c) player
-    where
-      checkmate White = -1000000000 
-      checkmate Black = 1000000000
-
-isCheckmate :: Chess -> Player Chess -> Bool
-isCheckmate c player = 
-  let legalMoves = moves c
-  in null legalMoves && inCheck player (unPosition c)
+  evaluate c p = case status c p of Win -> scoreInf
+                                    Loss -> -scoreInf
+                                    Draw -> -(scoreInf `div` 2)
+                                    Ongoing -> positionValue (unPosition c) p
 
 instance Strategy Chess where
   type Level Chess = Int
