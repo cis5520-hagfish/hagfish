@@ -93,7 +93,17 @@ instance Evaluate Chess where
   type Score Chess = Int
 
   evaluate :: Chess -> Player Chess -> Score Chess
-  evaluate c = positionValue (unPosition c)
+  evaluate c player
+    | isCheckmate c player = checkmate player
+    | otherwise = positionValue (unPosition c) player
+    where
+      checkmate White = -1000000000 
+      checkmate Black = 1000000000
+
+isCheckmate :: Chess -> Player Chess -> Bool
+isCheckmate c player = 
+  let legalMoves = moves c
+  in null legalMoves && inCheck player (unPosition c)
 
 instance Strategy Chess where
   type Level Chess = Int
