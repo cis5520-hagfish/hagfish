@@ -37,6 +37,8 @@ parseSquare [f, r] =
 parseSquare _ = Nothing
 
 -- parser combinators
+
+-- parses a chess square
 pSquare = do
   f <- pRank
   r <- pIndex
@@ -49,6 +51,7 @@ pSquare = do
     pRank = toUpper <$> satisfy (`elem` "ABCDEFGHabcdefgh")
     pIndex = satisfy (`elem` "12345678")
 
+-- parses a chess piece
 pPiece = optionMaybe (pKnight <|> pBishop <|> pRook <|> pQueen)
   where
     pKnight = Knight <$ (char 'N' <|> char 'n')
@@ -56,6 +59,7 @@ pPiece = optionMaybe (pKnight <|> pBishop <|> pRook <|> pQueen)
     pRook = Rook <$ (char 'R' <|> char 'r')
     pQueen = Queen <$ (char 'Q' <|> char 'q')
 
+-- parses a chess move
 pPly :: ParsecT String u Identity Ply
 pPly = do
   source <- pSquare

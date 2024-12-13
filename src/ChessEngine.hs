@@ -56,7 +56,11 @@ putHelp =
         %% colored ".analysis" Console.White [Console.Bold]
         %% " to show analysis,\n         "
         %% colored ".level {n}" Console.White [Console.Bold]
-        %% " to adjust engine search depth or "
+        %% " to adjust engine search depth, "
+        %% colored ".undo" Console.White [Console.Bold]
+        %% " to undo moves,\n         "
+        %% colored ".score" Console.White [Console.Bold]
+        %% " to show current board value, or "
         %% colored "make a move" Console.White [Console.Bold]
     )
 
@@ -135,7 +139,7 @@ instance Engine Hagfish where
               Right ActionHelp -> putHelp >> doUser eng'
               Right ActionUndo ->
                 if n < 3
-                  then putPrompt "You can not undo move anymore. This is your first move!" >> doUser eng'
+                  then putPrompt "You cannot undo moves now. This is your first move!" >> doUser eng'
                   else go (Hagfish pcolor' ccolor' (unMove (unMove c')) level') current (n - 2)
               Right (ActionMove move) ->
                 if Game.valid move c
