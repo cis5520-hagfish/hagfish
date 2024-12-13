@@ -15,15 +15,22 @@ import Text.Parsec.Prim
 finalChess :: Gen Chess
 finalChess = resize 200 (arbitrary :: Gen Chess)
 
+-- Tests that converting a `Square` to a string and parsing it back gives the same `Square`.
 prop_parseSquareInvariant :: Square -> Bool
 prop_parseSquareInvariant s = parseSquare (show s) == Just s
 
+-- Tests that after a move is played, the player changes (no player can play twice in a row).
 prop_chessPlayerFlip :: Chess -> Bool
 prop_chessPlayerFlip c = all (\m -> player c /= player (play c m)) (moves c)
 
+-- Tests that if the game status is "Ongoing," there must be legal moves available.
 prop_chessOngoing :: Chess -> Player Chess -> Property
 prop_chessOngoing c p = status c p == Ongoing ==> (not . null . moves) c
 
+-- Tests endgame conditions:
+-- 1. Loss: No legal moves and the player is in check.
+-- 2. Win: No legal moves and the opponent is in check.
+-- 3. Draw: The game status is not Ongoing but doesn't result in check for either side.
 prop_chessFinal :: Player Chess -> Property
 prop_chessFinal p = forAll finalChess $ \c ->
   status c p /= Ongoing ==> case status c p of
@@ -32,6 +39,8 @@ prop_chessFinal p = forAll finalChess $ \c ->
     Draw -> True
     _ -> error "unreachable"
 
+-- Tests that the player alternates correctly:
+-- The player is White on even-length histories and Black on odd-length histories.
 prop_chessLengthColor :: Chess -> Bool
 prop_chessLengthColor c = case histLength c `mod` 2 of
   0 -> player c == White
@@ -42,23 +51,27 @@ prop_chessLengthColor c = case histLength c `mod` 2 of
       Nothing -> 0
       Just c' -> histLength c' + 1
 
+-- Tests that the initial game always starts with White as the player.
 prop_chessWhiteStart :: Color -> Bool
 prop_chessWhiteStart c = player ((initial :: Color -> Chess) c) == White
 
+-- Tests that undoing a move returns the game state to its previous state.
 prop_chessUndo :: Chess -> Bool
 prop_chessUndo c = all (\m -> unMove (play c m) == c) (moves c)
 
--- Strategy and Evaluation Tests
+-- Tests that `bestMove` finds a move if legal moves are available.
 prop_bestMoveExists :: Chess -> Property
 prop_bestMoveExists c =
   not (null (moves c)) ==>
     isJust (bestMove 2 c)
 
+-- Tests that the `bestMove` function only selects a move that is valid for the current state.
 prop_bestMoveValid :: Chess -> Property
 prop_bestMoveValid c =
   not (null (moves c)) ==>
     maybe False (`elem` moves c) (bestMove 2 c)
 
+-- Tests that the `evaluate` function returns a score within the expected range, avoiding overflows or invalid outputs.
 prop_evaluateConsistent :: Chess -> Bool
 prop_evaluateConsistent c =
   let score = evaluate c (player c)
@@ -71,6 +84,8 @@ parseMove s c =
         Left err -> Left "Invalid syntax of move"
         Right ply -> if valid ply c then Right ply else Left "This is not a valid move"
 
+-- Tests the move parsing function:
+-- Verifies that parsing a string representation of a move returns the original move if it is valid for the given position.
 prop_parseMove :: Property
 prop_parseMove = forAllShow finalChess showMoves (\c -> all (\m -> parseMove (prettyMove m) c == Right m) (moves c))
   where
